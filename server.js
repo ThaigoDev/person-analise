@@ -1,50 +1,45 @@
 // servidor.js
 const express = require('express');
 const bodyParser = require('body-parser');
-const cors = require('cors'); // ✨ Já está importado!
+const cors = require('cors');
 require('dotenv').config();
-const { OpenAI } = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 
 // Middlewares
-app.use(bodyParser.json()); // Para analisar JSON no corpo das requisições
-app.use(express.static('public')); // Se você estiver servindo arquivos estáticos de um diretório 'public'
-
-// ✨ CONFIGURAÇÃO CORS:
-// Esta linha já permite que QUALQUER origem faça requisições à sua API.
-// Para fins de desenvolvimento (como http://127.0.0.1:5500), isso é ideal.
-// Se você for para produção, considere a opção mais segura abaixo.
+app.use(bodyParser.json());
+app.use(express.static('public'));
 app.use(cors());
 
-// ✨ EXEMPLO para Produção: Configuração CORS mais restritiva (DESCOMENTE SE PRECISAR)
-/*
+/* Configuração segura para produção (opcional)
 app.use(cors({
-  origin: ['http://127.0.0.1:5500', 'https://SEU_DOMINIO_DE_PRODUCAO.com'], // Substitua pelo seu domínio real em produção
-  methods: ['GET', 'POST'], // Especifique os métodos HTTP que suas rotas usam
-  allowedHeaders: ['Content-Type', 'Authorization'], // Especifique cabeçalhos adicionais que seu frontend envia
+  origin: ['http://127.0.0.1:5500', 'https://SEU_DOMINIO.com'],
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 */
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Inicializa Gemini
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Rota para gerar legenda
+// Rota para gerar recomendação
 app.post('/recomended-person', async (req, res) => {
   const { prompt } = req.body;
   try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-    });
-    const legenda = completion.choices[0].message.content;
-    res.json({ legenda });
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const analise = response.text();
+
+    res.json({ analise });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Erro ao gerar sua análise' });
+    res.status(500).json({ error: 'Erro ao gerar sua análise com Gemini' });
   }
 });
+
 // Inicia o servidor
-app.listen(process.env.PORT || 3000, () => { // Adicione || 3000 para um fallback caso PORT não esteja definido
+app.listen(process.env.PORT || 3000, () => {
   console.log(`Servidor rodando em http://localhost:${process.env.PORT || 3000}`);
 });
